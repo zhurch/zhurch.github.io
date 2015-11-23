@@ -5,16 +5,38 @@
   
   <title>Android Fragment 为什么推荐用bundle进行值传递 | Peter_zwu</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="zhurongchang blog">
+  <meta name="description" content="当我们实例化自定义Fragment时，为什么官方推荐Fragment.setArguments(Bundle bundle)这种方式来传递参数，而不推荐通过构造方法直接来传递参数呢？ 
+
+通过构造方法传递参数的情况
+
+
+public class FramentTestActivity extends ActionBarActivity {  
+  @Override
+  protected voi">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Android Fragment 为什么推荐用bundle进行值传递">
 <meta property="og:url" content="http://www.zhurch.com/2015/11/23/Android-Fragment-为什么推荐用bundle进行值传递/index.html">
 <meta property="og:site_name" content="Peter_zwu">
-<meta property="og:description" content="zhurongchang blog">
-<meta property="og:updated_time" content="2015-11-23T02:09:41.133Z">
+<meta property="og:description" content="当我们实例化自定义Fragment时，为什么官方推荐Fragment.setArguments(Bundle bundle)这种方式来传递参数，而不推荐通过构造方法直接来传递参数呢？ 
+
+通过构造方法传递参数的情况
+
+
+public class FramentTestActivity extends ActionBarActivity {  
+  @Override
+  protected voi">
+<meta property="og:image" content="http://www.zhurch.com/file:///F:/3.jpg">
+<meta property="og:updated_time" content="2015-11-23T02:35:34.677Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Android Fragment 为什么推荐用bundle进行值传递">
-<meta name="twitter:description" content="zhurongchang blog">
+<meta name="twitter:description" content="当我们实例化自定义Fragment时，为什么官方推荐Fragment.setArguments(Bundle bundle)这种方式来传递参数，而不推荐通过构造方法直接来传递参数呢？ 
+
+通过构造方法传递参数的情况
+
+
+public class FramentTestActivity extends ActionBarActivity {  
+  @Override
+  protected voi">
   
     <link rel="alternative" href="/atom.xml" title="Peter_zwu" type="application/atom+xml">
   
@@ -86,13 +108,99 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        
+        <p>当我们实例化自定义Fragment时，为什么官方推荐Fragment.setArguments(Bundle bundle)这种方式来传递参数，而不推荐通过构造方法直接来传递参数呢？ </p>
+<blockquote>
+<p>通过构造方法传递参数的情况</p>
+</blockquote>
+<pre><code>
+public class FramentTestActivity extends ActionBarActivity {  
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_main);
+    if (savedInstanceState == null) {
+      getSupportFragmentManager().beginTransaction()
+          .add(R.id.container, new TestFragment("param")).commit();
+    }    
+  }
+public static class TestFragment extends Fragment {
+    private String mArg = "non-param";    
+    public TestFragment() {
+      Log.i("INFO", "TestFragment non-parameter constructor");
+    }    
+    public TestFragment(String arg){
+      mArg = arg;
+      Log.i("INFO", "TestFragment construct with parameter");
+    }
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+        Bundle savedInstanceState) {
+      View rootView = inflater.inflate(R.layout.fragment_main, container,
+          false);
+      TextView tv = (TextView) rootView.findViewById(R.id.tv);
+      tv.setText(mArg);
+      return rootView;
+    }
+  }
+}
+</code></pre>
+![](file:///F:/1.jpg)
+
+传递过来的数据正确的显示了，现在来考虑一个问题，如果设备配置参数发生变化(横竖屏切换)，显示如下....为什么会显示默认值？
+![](file:///F:/2.jpg)
+
+> Fragment.setArguments(Bundle bundle)这种方式的运行情况
+
+<pre><code>
+public class FramentTest2Activity extends ActionBarActivity {       
+        @Override
+        protected void onCreate(Bundle savedInstanceState) {
+             super.onCreate(savedInstanceState);
+             setContentView(R.layout. activity_main);
+             if (savedInstanceState == null) {
+                  getSupportFragmentManager().beginTransaction()
+                 .add(R.id. container, TestFragment.newInstance("param")).commit();
+             }
+        }
+       public static class TestFragment extends Fragment {
+             private static final String ARG = "arg";             
+             public TestFragment() {
+                     Log. i("INFO", "TestFragment non-parameter constructor" );
+             }
+             public static Fragment newInstance(String arg){
+                     TestFragment fragment = new TestFragment();
+                     Bundle bundle = new Bundle();
+                     bundle.putString( ARG, arg);
+                     fragment.setArguments(bundle);
+                     return fragment;
+             }             
+              @Override
+              public View onCreateView(LayoutInflater inflater, ViewGroup container,
+               Bundle savedInstanceState) {
+                        View rootView = inflater.inflate(R.layout. fragment_main,                                 container, false);
+                        TextView tv = (TextView) rootView.findViewById(R.id. tv);
+                        tv.setText(getArguments().getString( ARG));
+                     return rootView;
+             }
+       }
+}
+</code></pre>
+
+<p>横竖屏切换后的运行情况<br><img src="file:///F:/3.jpg" alt=""></p>
+<hr>
+<blockquote>
+<p>设备横竖屏切换的话，当前展示给用户的Activity默认情况下会重新创建并展现给用户，那依附于Activity的Fragment会进行如何处理呢，<br>由于我们的Fragment是由FragmentManager来管理，在FragmentManager.restoreAllState()方法中，通过调用FragmentState的instantiate方法创建Fragment，FragmentState.instantitate()方法的实现<br>最终会通过反射无参构造实例化一个新的Fragment，并且给mArgments初始化为原先的值，而原来的Fragment实例的数据都丢失了，并重新进行了初始化</p>
+</blockquote>
+<p>######通过上面的分析，我们可以知道Activity重新创建时，会重新构建它所管理的Fragment，原先的Fragment的字段值将会全部丢失，但是通过 Fragment.setArguments(Bundle bundle)方法设置的bundle会保留下来。所以尽量使用 Fragment.setArguments(Bundle bundle)方式来传递参数</p>
+
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://www.zhurch.com/2015/11/23/Android-Fragment-为什么推荐用bundle进行值传递/" data-id="cihbbftoa00005khlsdbd11sw" class="article-share-link">Share</a>
+      <a data-url="http://www.zhurch.com/2015/11/23/Android-Fragment-为什么推荐用bundle进行值传递/" data-id="cihbcep0k000040hlq8buix95" class="article-share-link">Share</a>
       
       
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Android-Fragment/">Android,Fragment</a></li></ul>
+
     </footer>
   </div>
   
@@ -120,7 +228,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/">java</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/设计模式/">设计模式</a><span class="tag-list-count">1</span></li></ul>
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Android-Fragment/">Android,Fragment</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/java/">java</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/设计模式/">设计模式</a><span class="tag-list-count">1</span></li></ul>
     </div>
   </div>
 
@@ -129,7 +237,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/设计模式/" style="font-size: 10px;">设计模式</a>
+      <a href="/tags/Android-Fragment/" style="font-size: 10px;">Android,Fragment</a> <a href="/tags/java/" style="font-size: 10px;">java</a> <a href="/tags/设计模式/" style="font-size: 10px;">设计模式</a>
     </div>
   </div>
 
